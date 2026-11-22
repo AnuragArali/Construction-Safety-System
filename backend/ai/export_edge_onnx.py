@@ -1,11 +1,11 @@
 """
-Export YOLOv8 model to ONNX / OpenVINO / NCNN for Raspberry Pi Edge Inference.
+Export YOLO11 model to ONNX / OpenVINO / NCNN for Raspberry Pi Edge Inference.
 """
 
 import argparse
 from ultralytics import YOLO
 
-def export_edge(model_path: str = "yolov8n.pt", format_name: str = "onnx"):
+def export_edge(model_path: str = "yolo11n.pt", format_name: str = "onnx"):
     print(f"Loading {model_path} for edge export...")
     model = YOLO(model_path)
 
@@ -21,8 +21,8 @@ def export_edge(model_path: str = "yolov8n.pt", format_name: str = "onnx"):
     return exported_path
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Export YOLO for Edge Hardware")
-    parser.add_argument("--model", type=str, default="yolov8n.pt", help="Model weights path")
+    parser = argparse.ArgumentParser(description="Export YOLO11 for Edge Hardware")
+    parser.add_argument("--model", type=str, default="yolo11n.pt", help="Model weights path")
     parser.add_argument("--format", type=str, default="onnx", choices=["onnx", "tflite", "openvino", "ncnn"])
     args = parser.parse_args()
     export_edge(args.model, args.format)

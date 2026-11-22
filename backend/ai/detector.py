@@ -74,7 +74,7 @@ class SafetyDetector:
                             })
 
                     # If standard COCO model was used (person detected, but no PPE classes natively in COCO):
-                    if self.model_type == "YOLOv8_EDGE_HYBRID" and len(workers) > 0 and len(equipment) == 0:
+                    if ("EDGE_HYBRID" in self.model_type or "YOLO11" in self.model_type or "YOLOv8" in self.model_type) and len(workers) > 0 and len(equipment) == 0:
                         equipment.extend(self._analyze_worker_ppe_regions(image, workers))
 
             except Exception as e:

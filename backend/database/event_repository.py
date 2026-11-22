@@ -2,7 +2,7 @@ import uuid
 import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from database.models import SafetyEvent, SafetyRule, SystemConfig, PrivacyAuditLog
+from database.models import SafetyEvent, SafetyRule, SystemConfig, PrivacyAuditLog, Worker, CheckpointAccessLog
 
 class EventRepository:
     @staticmethod
@@ -121,3 +121,109 @@ class EventRepository:
     @staticmethod
     def get_audit_logs(db: Session, limit: int = 20) -> list[PrivacyAuditLog]:
         return db.query(PrivacyAuditLog).order_by(desc(PrivacyAuditLog.timestamp)).limit(limit).all()
+
+    # --- Worker Biometrics & Directory Repository Methods ---
+    @staticmethod
+    def get_workers(db: Session, is_active: bool = True) -> list[Worker]:
+        query = db.query(Worker)
+        if is_active is not None:
+            query = query.filter(Worker.is_active == is_active)
+        return query.order_by(Worker.worker_id).all()
+
+    @staticmethod
+    def get_worker_by_id(db: Session, worker_id: str) -> Worker | None:
+        return db.query(Worker).filter(Worker.worker_id == worker_id).first()
+
+    @staticmethod
+    def get_worker_by_fingerprint_id(db: Session, fingerprint_id: int) -> Worker | None:
+        return db.query(Worker).filter(Worker.fingerprint_id == fingerprint_id).first()
+
+    @staticmethod
+    def create_worker(db: Session, data: dict) -> Worker:
+        worker = Worker(
+            worker_id=data["worker_id"],
+            name=data["name"],
+            role=data.get("role", "Technician"),
+            department=data.get("department", "Construction & Framing"),
+            fingerprint_id=data.get("fingerprint_id"),
+            fingerprint_enrolled=data.get("fingerprint_enrolled", False),
+            fingerprint_hash=data.get("fingerprint_hash"),
+            face_enrolled=data.get("face_enrolled", False),
+            face_features=data.get("face_features"),
+            photo_thumbnail=data.get("photo_thumbnail"),
+            authorized_zones=",".join(data.get("authorized_zones", ["General Worksite", "Doorway-North"]))
+            if isinstance(data.get("authorized_zones"), list)
+            else data.get("authorized_zones", "General Worksite,Doorway-North"),
+            is_active=data.get("is_active", True)
+        )
+        db.add(worker)
+        db.commit()
+        db.refresh(worker)
+        return worker
+
+    @staticmethod
+    def update_worker(db: Session, worker_id: str, updates: dict) -> Worker | None:
+        worker = db.query(Worker).filter(Worker.worker_id == worker_id).first()
+        if not worker:
+            return None
+        for key, val in updates.items():
+            if hasattr(worker, key):
+                if key == "authorized_zones" and isinstance(val, list):
+                    val = ",".join(val)
+                setattr(worker, key, val)
+        worker.updated_at = datetime.datetime.utcnow()
+        db.commit()
+        db.refresh(worker)
+        return worker
+
+    @staticmethod
+    def delete_worker(db: Session, worker_id: str) -> bool:
+        worker = db.query(Worker).filter(Worker.worker_id == worker_id).first()
+        if not worker:
+            return False
+        db.delete(worker)
+        db.commit()
+        return True
+
+    # --- Checkpoint Access Logs Repository Methods ---
+    @staticmethod
+    def create_checkpoint_log(db: Session, data: dict) -> CheckpointAccessLog:
+        log = CheckpointAccessLog(
+            checkpoint_name=data.get("checkpoint_name", "Doorway-North"),
+            worker_id=data.get("worker_id"),
+            worker_name=data.get("worker_name"),
+            auth_method=data.get("auth_method", "FINGERPRINT+FACE"),
+            fingerprint_verified=data.get("fingerprint_verified", False),
+            face_verified=data.get("face_verified", False),
+            has_helmet=data.get("has_helmet", False),
+            has_vest=data.get("has_vest", False),
+            access_decision=data.get("access_decision", "DENIED"),
+            reason=data.get("reason", ""),
+            confidence_score=data.get("confidence_score", 0.0),
+            voice_announcement=data.get("voice_announcement"),
+            gpio_pulse_sent=data.get("gpio_pulse_sent", False)
+        )
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        return log
+
+    @staticmethod
+    def get_checkpoint_logs(db: Session, limit: int = 50, offset: int = 0) -> list[CheckpointAccessLog]:
+        return db.query(CheckpointAccessLog).order_by(desc(CheckpointAccessLog.timestamp)).offset(offset).limit(limit).all()
+
+    @staticmethod
+    def get_checkpoint_statistics(db: Session) -> dict:
+        total = db.query(CheckpointAccessLog).count()
+        granted = db.query(CheckpointAccessLog).filter(CheckpointAccessLog.access_decision == "GRANTED").count()
+        denied_ppe = db.query(CheckpointAccessLog).filter(CheckpointAccessLog.access_decision == "DENIED_PPE_VIOLATION").count()
+        denied_auth = db.query(CheckpointAccessLog).filter(CheckpointAccessLog.access_decision.in_(["DENIED_BIOMETRIC_FAIL", "DENIED_UNAUTHORIZED"])).count()
+        
+        compliance_pct = round((granted / total * 100), 1) if total > 0 else 100.0
+        return {
+            "total_checkpoints_logged": total,
+            "granted_count": granted,
+            "denied_ppe_count": denied_ppe,
+            "denied_auth_count": denied_auth,
+            "doorway_compliance_rate": compliance_pct
+        }

@@ -98,7 +98,7 @@ Alert latency measures the elapsed time from camera frame acquisition to audible
 | :--- | :---: | :---: | :--- |
 | **Frame Ingestion** | 4.2 | 6.1 | V4L2 / OpenCV DirectShow buffer read |
 | **CLAHE Contrast Preprocessing** | 3.8 | 4.9 | LAB adaptive histogram equalization |
-| **YOLOv8 Edge Inference** | 32.5 | 38.2 | ONNX / PyTorch CPU inference on 640x640 frame |
+| **YOLO11 Edge Inference** | 31.8 | 36.4 | ONNX / PyTorch CPU inference on 640x640 frame |
 | **Rule & Debounce Analysis** | 2.1 | 2.8 | Polygon containment & cooldown timestamp check |
 | **Voice Synthesis Queue Dispatch** | 12.4 | 16.5 | Non-blocking thread-safe push to `pyttsx3` worker |
 | **Total System Latency** | **55.0 ms** | **68.5 ms** | **Sub-100 ms real-time safety constraint achieved** |
@@ -134,7 +134,7 @@ The privacy verification suite confirmed zero data leakage:
 This project successfully designed, implemented, and validated an **Edge-Enabled Privacy-Preserving System for Construction Workspace Management** based on the requirements defined by the Department of Electronics & Communication Engineering and Department of Computer Science & Engineering, **Siddaganga Institute of Technology (SIT), Tumakuru**.
 
 Key achievements:
-1. **Local Edge AI Inference**: Deployed YOLOv8 object detection paired with spatial anatomical PPE verification running locally on edge hardware (Raspberry Pi 4/5) at ~16.5 FPS.
+1. **Local Edge AI Inference**: Deployed YOLO11 object detection paired with spatial anatomical PPE verification running locally on edge hardware (Raspberry Pi 4/5) at ~16.5 FPS.
 2. **Strict Privacy Preservation**: Eliminated the risks of conventional cloud video surveillance by processing video in volatile RAM, automatically applying Gaussian facial blurring, and logging only minimal event metadata in SQLite.
 3. **Actionable Multilingual Voice Alerting**: Implemented an offline text-to-speech alerting pipeline delivering spoken warnings in **English, Hindi, Kannada, and Spanish** with sub-70 ms end-to-end alert latency.
 4. **Full-Stack Industrial Dashboard**: Delivered an integrated React web dashboard with live video streaming, telemetry tracking, searchable safety history, and CSV compliance export.
@@ -169,7 +169,7 @@ While the working prototype fulfills all core objectives of the synopsis, future
 6. **O. Poudel and R. H. Assaad**, "A Real-Time Intelligent Acoustic IoT-Enabled Embedded Construction Site Monitoring and Alert System: Integrating Deep Learning-Based Machine-Listening Algorithms, Edge Computing, and Cloud Computing," *Journal of Construction Engineering and Management*, vol. 151, no. 7, 2025.
 7. **S. Malaekeh, P. Ghoddoussi, and A. A. Shirzadi Javid**, "Incremental learning framework for edge AI-enabled worker tracking and productivity monitoring in digital construction," *Automation in Construction*, 2026.
 8. **J. Redmon and A. Farhadi**, "YOLOv3: An Incremental Improvement," *arXiv preprint arXiv:1804.02767*, 2018.
-9. **G. Jocher, A. Chaurasia, and J. Qiu**, "Ultralytics YOLOv8," *GitHub repository*, https://github.com/ultralytics/ultralytics, 2023.
+9. **G. Jocher, A. Chaurasia, and J. Qiu**, "Ultralytics YOLO11," *GitHub repository*, https://github.com/ultralytics/ultralytics, 2024.
 10. **Occupational Safety and Health Administration (OSHA)**, "Personal Protective Equipment (PPE) in Construction Standard 29 CFR 1926.95," *U.S. Department of Labor*, 2024.
 
 ---
@@ -202,7 +202,7 @@ While the working prototype fulfills all core objectives of the synopsis, future
 
 | Component | Specification / Model | Interface | Function in System |
 | :--- | :--- | :--- | :--- |
-| **Single Board Computer** | Raspberry Pi 4 Model B (4GB RAM) or Raspberry Pi 5 (8GB) | USB 3.0 / PCIe HAT | Primary Edge Processing Unit (Runs FastAPI & YOLOv8) |
+| **Single Board Computer** | Raspberry Pi 4 Model B (4GB RAM) or Raspberry Pi 5 (8GB) | USB 3.0 / PCIe HAT | Primary Edge Processing Unit (Runs FastAPI & YOLO11) |
 | **Visual Ingestion Camera** | 1080p UVC USB Webcam / AR Smart Glasses (Vuzix/Rokid) | USB 2.0 / USB-C | Captures real-time worker field-of-view visual frames |
 | **Audio Alert Output** | 3.5mm Headphone Jack / Bluetooth Smart Glasses Earphone | TRRS / BT 5.0 | Dispatches instant spoken native-language voice alerts |
 | **Local Storage** | 32GB SanDisk Extreme MicroSD (A2 Class) / NVMe SSD | MicroSD / PCIe | Stores OS, SQLite `construction_safety.db`, and weights |
@@ -237,7 +237,7 @@ backend/tests/test_backend.py::test_api_endpoints PASSED                        
 from ultralytics import YOLO
 
 def train_edge_model():
-    model = YOLO("yolov8n.pt")
+    model = YOLO("yolo11n.pt")
     model.train(
         data="data/construction_ppe.yaml",
         epochs=40,
@@ -245,7 +245,7 @@ def train_edge_model():
         imgsz=640,
         device="cpu", # or 0 for CUDA GPU
         project="runs/construction_ppe",
-        name="edge_v1"
+        name="edge_yolo11_v1"
     )
 ```
 
@@ -254,7 +254,7 @@ def train_edge_model():
 from ultralytics import YOLO
 
 def export_to_onnx():
-    model = YOLO("yolov8n.pt")
+    model = YOLO("yolo11n.pt")
     model.export(format="onnx", imgsz=640, dynamic=False, simplify=True)
     print("Static 640x640 ONNX model ready for OpenCV DNN on Raspberry Pi.")
 ```

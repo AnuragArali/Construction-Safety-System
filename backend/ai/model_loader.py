@@ -19,7 +19,9 @@ class ModelLoader:
     @classmethod
     def load_model(cls):
         model_path = Path(settings.MODEL_PATH)
-        custom_ppe_model = Path(settings.MODELS_DIR) / "construction_ppe_yolov8.pt"
+        custom_ppe_model = Path(settings.MODELS_DIR) / "construction_ppe_yolo11.pt"
+        if not custom_ppe_model.exists():
+            custom_ppe_model = Path(settings.MODELS_DIR) / "construction_ppe_yolov8.pt"
 
         # Check for custom fine-tuned PPE model first
         if custom_ppe_model.exists():
@@ -32,15 +34,16 @@ class ModelLoader:
             except Exception as e:
                 logger.warning(f"Failed to load custom PPE model: {e}. Falling back...")
 
-        # Load standard YOLOv8 nano edge model
+        # Load standard YOLO11 nano edge model
         try:
             from ultralytics import YOLO
-            logger.info(f"Loading standard YOLO edge model: yolov8n.pt")
-            cls._model = YOLO("yolov8n.pt")
-            cls._model_type = "YOLOv8_EDGE_HYBRID"
+            target_model = str(model_path) if model_path.exists() else "yolo11n.pt"
+            logger.info(f"Loading standard YOLO11 edge model: {target_model}")
+            cls._model = YOLO(target_model)
+            cls._model_type = "YOLO11_EDGE_HYBRID"
             return cls._model, cls._model_type
         except Exception as e:
-            logger.error(f"Could not load YOLO model: {e}. Falling back to heuristic edge detector.")
+            logger.error(f"Could not load YOLO11 model: {e}. Falling back to heuristic edge detector.")
             cls._model = None
             cls._model_type = "HEURISTIC_EDGE_DETECTOR"
             return cls._model, cls._model_type

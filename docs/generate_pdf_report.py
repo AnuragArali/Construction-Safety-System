@@ -406,7 +406,7 @@ def build_chapter7(ss, story):
         "10.5 frames per second, which is sufficient for near-real-time safety "
         "monitoring in a construction workspace where worker pose changes occur "
         "on the order of seconds. On a Raspberry Pi 4 (4 GB RAM), the anticipated "
-        "latency is 250–400 ms (2.5–4 fps) based on published YOLOv8n benchmarks, "
+        "latency is 220–380 ms (2.6–4.5 fps) based on published YOLO11n benchmarks, "
         "adequate for safety monitoring albeit not suitable for high-speed "
         "industrial conveyor applications.",
         ss["BodyJ"]))
@@ -484,7 +484,7 @@ def build_chapter8(ss, story):
          "operational safety and worker privacy requirements simultaneously."
         ),
         ("",
-         "The integration of a YOLOv8-based detection pipeline with a lightweight "
+         "The integration of a YOLO11-based detection pipeline with a lightweight "
          "anatomical HSV-verification layer enabled robust multi-class inference "
          "(worker, helmet, vest) at median latency of 95 ms on a commodity CPU. "
          "The FastAPI backend encapsulates all AI, safety-rule, voice-alert, and "
@@ -523,11 +523,11 @@ def build_chapter8(ss, story):
 
     future_items = [
         (
-            "Custom PPE Dataset and Fine-Tuned YOLO Model",
-            "The current detector relies on a generic YOLOv8n backbone supplemented by "
+            "Custom PPE Dataset and Fine-Tuned YOLO11 Model",
+            "The current detector relies on a generic YOLO11n backbone supplemented by "
             "colour heuristics. Collecting 5,000–10,000 annotated images of construction "
             "workers in Indian site conditions (variable lighting, regional PPE colours, "
-            "diverse clothing) and fine-tuning YOLOv8 on this domain-specific corpus would "
+            "diverse clothing) and fine-tuning YOLO11 on this domain-specific corpus would "
             "substantially improve precision, recall, and robustness under low-light "
             "and occluded conditions."
         ),
@@ -813,7 +813,7 @@ def main():
 
     doc.build(story, onFirstPage=_first_page, onLaterPages=on_page)
     size_kb = OUTPUT.stat().st_size // 1024
-    print(f"\n✅  PDF generated successfully!")
+    print("PDF generated successfully!")
     print(f"   Location : {OUTPUT}")
     print(f"   Size     : {size_kb} KB")
 

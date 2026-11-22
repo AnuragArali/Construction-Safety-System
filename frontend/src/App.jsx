@@ -9,6 +9,8 @@ import SafetyHistory from './pages/SafetyHistory';
 import Analytics from './pages/Analytics';
 import SafetyInformation from './pages/SafetyInformation';
 import Settings from './pages/Settings';
+import DoorwayCheckpoint from './pages/DoorwayCheckpoint';
+import WorkerBiometrics from './pages/WorkerBiometrics';
 import api from './services/api';
 
 export default function App() {
@@ -92,6 +94,8 @@ export default function App() {
                   />
                 }
               />
+              <Route path="/checkpoint" element={<DoorwayCheckpoint />} />
+              <Route path="/biometrics" element={<WorkerBiometrics />} />
               <Route path="/alerts" element={<SafetyAlerts />} />
               <Route path="/history" element={<SafetyHistory />} />
               <Route path="/analytics" element={<Analytics />} />

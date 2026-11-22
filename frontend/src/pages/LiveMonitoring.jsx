@@ -156,7 +156,7 @@ export default function LiveMonitoring({ monitoringActive, onToggleMonitoring, c
                 <div>
                   <h4 className="text-sm font-semibold text-slate-300">Edge Stream Paused</h4>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                    Click 'Start Monitoring' to activate camera capture, YOLO detection, and safety analysis.
+                    Click 'Start Monitoring' to activate camera capture, YOLO11 detection, and safety analysis.
                   </p>
                 </div>
               </div>

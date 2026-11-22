@@ -231,7 +231,7 @@ def generate_system_flowchart():
     _draw_box(d, cx, y, bw, bh, "Image Preprocessing\n(CLAHE + Letterbox)", C_PROCESS); y -= 50
     _arrow_down(d, W/2, y+bh+18, y+bh)
 
-    _draw_box(d, cx, y, bw, bh, "AI Detection Module\n(YOLOv8 + HSV PPE)", C_PROCESS); y -= 55
+    _draw_box(d, cx, y, bw, bh, "AI Detection Module\n(YOLO11 + HSV PPE)", C_PROCESS); y -= 55
     _arrow_down(d, W/2, y+bh+23, y+bh)
 
     # Decision diamond
@@ -555,7 +555,9 @@ def build_section_6_1(ss, story):
     hw_data = [
         ["Component",            "Specification",                          "Purpose"],
         ["Processing Unit",      "Raspberry Pi 4 Model B (4 GB RAM)",     "Edge inference, local web server, database host"],
-        ["Camera",               "USB Webcam / Pi Camera V2 / AR/VR HMD", "Real-time frame capture of construction workspace"],
+        ["Camera",               "USB Webcam / Pi Camera V2 / AR/VR HMD", "Real-time frame capture of construction workspace & doorway"],
+        ["Fingerprint Sensor",   "AS608 / R503 Optical Module (UART)",    "Worker biometric authentication via minutiae template search"],
+        ["Turnstile Actuator",   "5V Relay on Raspberry Pi GPIO 17",       "Doorway latch pulse control for authorized compliant access"],
         ["Storage",              "16 GB+ Class 10 MicroSD (A1 rated)",    "OS, application code, SQLite database, YOLO model weights"],
         ["Network",              "Ethernet / Wi-Fi (site LAN only)",      "Frontend access from on-site devices; no internet required"],
         ["Audio Output",         "3.5 mm speaker or USB audio adapter",   "Voice alert playback via pyttsx3/espeak"],
@@ -586,13 +588,14 @@ def build_section_6_1(ss, story):
         ["OpenCV-Python",    ">= 4.8",     "Apache 2.0",  "Image capture, preprocessing, CLAHE, blur, annotation"],
         ["NumPy",            ">= 1.24",    "BSD-3",       "Array operations for image and HSV analysis"],
         ["Pillow",           ">= 10.0",    "HPND",        "Supplementary image I/O"],
-        ["Ultralytics",      ">= 8.1",     "AGPL-3",      "YOLOv8 model loading, inference, export APIs"],
+        ["Ultralytics",      ">= 8.1",     "AGPL-3",      "YOLO11 model loading, inference, export APIs"],
         ["PyTorch",          ">= 2.0",     "BSD-3",       "Deep-learning backend for YOLO inference"],
         ["TorchVision",      ">= 0.15",    "BSD-3",       "Image transforms (required by Ultralytics)"],
         ["pyttsx3",          ">= 2.90",    "MPL-2.0",     "Offline text-to-speech for voice safety alerts"],
         ["python-multipart", ">= 0.0.9",   "Apache 2.0",  "File upload handling (video samples)"],
         ["pytest",           ">= 8.0",     "MIT",         "Unit and integration test framework"],
         ["HTTPX",            ">= 0.27",    "BSD-3",       "Async test client for FastAPI endpoints"],
+        ["PySerial",         ">= 3.5",     "BSD-3",       "UART communication with AS608/R503 fingerprint sensor"],
     ]
     story.append(tbl(be_data, [3*cm, 2*cm, 2.5*cm, 7.5*cm]))
     story.append(Paragraph("Table 6.2 -- Backend software dependencies.", ss["Caption"]))
@@ -648,7 +651,7 @@ def build_section_6_1(ss, story):
     func_items = [
         ("FR-01", "Camera Ingestion", "Capture frames from USB webcam, Pi Camera V2, uploaded video, or synthetic scene generator."),
         ("FR-02", "Image Preprocessing", "Apply CLAHE contrast enhancement and letterbox resize to normalise frames for YOLO input."),
-        ("FR-03", "Worker Detection", "Detect and localise construction workers using YOLOv8 person detection or skin-tone contour analysis."),
+        ("FR-03", "Worker Detection", "Detect and localise construction workers using YOLO11 person detection or skin-tone contour analysis."),
         ("FR-04", "PPE Detection", "Identify safety helmets and high-visibility vests via YOLO class labels or HSV anatomical region analysis."),
         ("FR-05", "PPE-Worker Association", "Associate detected PPE items with individual workers using IoU-based spatial containment logic."),
         ("FR-06", "Violation Analysis", "Evaluate each worker against configurable safety rules (missing helmet, missing vest, zone intrusion)."),
@@ -658,8 +661,10 @@ def build_section_6_1(ss, story):
         ("FR-10", "Local Database Persistence", "Store safety events, rules, and audit log entries in SQLite; support purge by retention period."),
         ("FR-11", "Privacy Safeguards", "Blur worker faces before display/storage; never store raw video; never transmit to cloud."),
         ("FR-12", "MJPEG Live Stream", "Encode annotated frames as MJPEG and serve via HTTP for browser-based live monitoring."),
-        ("FR-13", "REST API", "Expose 14 endpoints for system control, data retrieval, configuration, and privacy auditing."),
-        ("FR-14", "Web Dashboard", "Provide 7 React pages: Dashboard, Live Monitoring, Alerts, History, Analytics, Safety Info, Settings."),
+        ("FR-13", "REST API", "Expose 22 endpoints for system control, biometrics, checkpoint access, and privacy auditing."),
+        ("FR-14", "Web Dashboard", "Provide 9 React pages including Doorway Checkpoint Terminal and Worker Biometrics."),
+        ("FR-15", "Fingerprint Biometrics", "Authenticate worker identities using optical AS608/R503 sensor (UART) with edge simulation fallback."),
+        ("FR-16", "Doorway Access Control", "Evaluate combined biometric identity and YOLO11 PPE compliance; pulse Raspberry Pi GPIO 17 relay on grant."),
     ]
     func_data = [["ID", "Requirement", "Description"]]
     for fid, fname, fdesc in func_items:
@@ -727,8 +732,8 @@ def build_section_6_2(ss, story):
          "detection robustness under variable outdoor construction lighting. "
          "Time complexity: O(W x H) where W, H are frame dimensions."),
 
-        ("Step 3: YOLOv8 Object Detection",
-         "Pass the enhanced frame to the YOLOv8n model via ultralytics predict() with "
+        ("Step 3: YOLO11 Object Detection",
+         "Pass the enhanced frame to the YOLO11n model via ultralytics predict() with "
          "confidence threshold 0.40, IoU threshold 0.45, and input size 640x640. The "
          "model returns bounding boxes, class IDs, and confidence scores. 'person' / "
          "'worker' detections are classified as workers; 'helmet', 'hardhat', 'vest', "
@@ -737,7 +742,7 @@ def build_section_6_2(ss, story):
 
         ("Step 4: HSV Anatomical PPE Verification",
          "When the YOLO model detects workers but no PPE classes (as with the generic "
-         "COCO-trained YOLOv8n), a colour-based verification algorithm activates:\n"
+         "COCO-trained YOLO11n), a colour-based verification algorithm activates:\n"
          "a) Head Region (top 25% of worker box): Convert to HSV. Apply inRange() "
          "masks for yellow [20,80,100]-[35,255,255], orange [5,120,120]-[18,255,255], "
          "and white [0,0,190]-[180,40,255] helmets. If the combined mask ratio exceeds "
@@ -798,56 +803,59 @@ def build_section_6_2(ss, story):
 
     story.append(sp(0.4))
 
-    # ── 6.2.2  YOLOv8 Detection Algorithm ────────────────────────────────
-    story.append(Paragraph("6.2.2  YOLOv8 Object Detection Algorithm", ss["SubSection"]))
+    # ── 6.2.2  YOLO11 Detection Algorithm ────────────────────────────────
+    story.append(Paragraph("6.2.2  YOLO11 Object Detection Algorithm", ss["SubSection"]))
     story.append(sp(0.2))
     story.append(Paragraph(
-        "YOLOv8 (You Only Look Once, version 8) is a single-stage, anchor-free object "
-        "detection architecture developed by Ultralytics. The system uses the YOLOv8n "
-        "(nano) variant, selected for its optimal balance between accuracy and inference "
-        "speed on resource-constrained edge hardware.",
+        "YOLO11 (You Only Look Once, version 11) is the latest state-of-the-art single-stage, "
+        "anchor-free object detection architecture developed by Ultralytics. The system uses the "
+        "YOLO11n (nano) variant, selected for its superior accuracy-to-compute ratio, reduced "
+        "parameter count, and enhanced inference speed on resource-constrained edge hardware like "
+        "the Raspberry Pi.",
         ss["BodyJ"]))
     story.append(sp(0.2))
 
-    story.append(Paragraph("Architecture Components:", ss["SubSubSection"]))
+    story.append(Paragraph("Architecture Components & Advancements:", ss["SubSubSection"]))
     yolo_arch = [
-        ("Backbone (CSPDarknet53)", "Extracts hierarchical feature maps from the input image "
-         "using cross-stage partial connections that reduce computation while maintaining "
-         "gradient flow."),
-        ("Neck (PANet + FPN)", "Aggregates features at multiple scales via a Path Aggregation "
-         "Network and Feature Pyramid Network, enabling detection of both large (workers) "
-         "and small (helmets) objects."),
-        ("Head (Decoupled)", "Separate classification and regression heads predict class "
-         "probabilities and bounding-box coordinates independently, improving convergence."),
-        ("Loss Function", "CIoU (Complete IoU) for bounding-box regression; Binary "
-         "Cross-Entropy for classification; Distribution Focal Loss for objectness."),
-        ("Post-Processing", "Non-Maximum Suppression (NMS) with IoU threshold 0.45 removes "
-         "overlapping detections."),
+        ("Backbone (C3k2 Blocks)", "Extracts hierarchical multiscale visual representations using "
+         "optimized C3k2 (Cross Stage Partial with 2 kernel convolutions) modules, significantly "
+         "reducing floating-point operations while improving gradient propagation across layers."),
+        ("Spatial Attention (C2PSA)", "Integrates Cross Stage Partial with Pointwise Spatial "
+         "Attention (C2PSA) blocks in the deeper backbone layers, enhancing localized feature "
+         "focus and contextual sensitivity for detecting small PPE items (hard hats, safety glasses)."),
+        ("Neck (Enhanced PANet)", "Aggregates multi-scale feature pyramids across bottom-up and "
+         "top-down pathways, improving detection across varying worker distances and viewing angles."),
+        ("Head (Decoupled Anchor-Free)", "Separate classification and bounding-box regression heads "
+         "with Task-Aligned Assigner (TAL) eliminate anchor priors and boost edge inference efficiency."),
+        ("Loss Function", "Complete IoU (CIoU) and Distribution Focal Loss (DFL) for box regression, "
+         "paired with Binary Cross-Entropy (BCE) for multi-label worker/PPE classification."),
+        ("Post-Processing", "Non-Maximum Suppression (NMS) with IoU threshold 0.45 eliminates "
+         "redundant overlapping candidate bounding boxes."),
     ]
     for name, desc in yolo_arch:
         story.append(Paragraph(f"<b>{name}:</b> {desc}", ss["BulletItem"], bulletText="\u2022"))
 
     story.append(sp(0.3))
-    story.append(Paragraph("YOLOv8n Model Specifications:", ss["SubSubSection"]))
+    story.append(Paragraph("YOLO11n Model Specifications:", ss["SubSubSection"]))
     yolo_spec_data = [
         ["Parameter",              "Value"],
         ["Input Resolution",       "640 x 640 px (letterboxed)"],
-        ["Parameters",             "3.2 million"],
-        ["FLOPs",                  "8.7 billion"],
-        ["mAP@0.5 (COCO)",        "37.3%"],
-        ["Model File Size",       "6.3 MB (.pt)"],
-        ["ONNX Exported Size",    "~12 MB (.onnx, FP32)"],
-        ["INT8 Quantised Size",   "~3 MB (estimated)"],
+        ["Parameters",             "2.6 million (22% fewer than v8n)"],
+        ["FLOPs",                  "6.5 billion (25% fewer than v8n)"],
+        ["mAP@50-95 (COCO)",       "39.5% (improved accuracy)"],
+        ["Model File Size",       "5.4 MB (.pt)"],
+        ["ONNX Exported Size",    "~10.5 MB (.onnx, FP32)"],
+        ["INT8 Quantised Size",   "~2.7 MB (estimated)"],
     ]
     story.append(tbl(yolo_spec_data, [5*cm, 10.5*cm]))
-    story.append(Paragraph("Table 6.7 -- YOLOv8n model specifications.", ss["Caption"]))
+    story.append(Paragraph("Table 6.7 -- YOLO11n model specifications.", ss["Caption"]))
     story.append(sp(0.4))
 
     # ── 6.2.3  HSV PPE Verification Algorithm ────────────────────────────
     story.append(Paragraph("6.2.3  HSV Colour-Based PPE Verification Algorithm", ss["SubSection"]))
     story.append(sp(0.2))
     story.append(Paragraph(
-        "Since the generic COCO-trained YOLOv8n model does not contain 'helmet' or 'vest' "
+        "Since the generic COCO-trained YOLO11n model does not contain 'helmet' or 'vest' "
         "as native classes, the system implements a supplementary colour-based PPE "
         "verification algorithm that operates on anatomically segmented worker regions.",
         ss["BodyJ"]))
@@ -972,19 +980,114 @@ FUNCTION detect_synthetic_workers(frame):
                             ss["CodeBlock"]))
     story.append(sp(0.3))
 
-    # ── 6.2.7  Complexity Summary ────────────────────────────────────────
-    story.append(Paragraph("6.2.7  Computational Complexity Summary", ss["SubSection"]))
+    # ── 6.2.8  Fingerprint Biometric Authentication Algorithm ─────────
+    story.append(Paragraph("6.2.8  AS608/R503 Fingerprint Authentication Algorithm", ss["SubSection"]))
+    story.append(sp(0.2))
+    story.append(Paragraph(
+        "Worker biometric verification uses optical fingerprint minutiae extraction and template "
+        "matching. The sensor communicates over UART (57600 baud). If no physical sensor is attached, "
+        "the edge simulator executes deterministic template matching against SQLite records.",
+        ss["BodyJ"]))
+    story.append(sp(0.2))
+
+    fprint_pseudo = """\
+FUNCTION verify_fingerprint(sensor, simulated_id=None):
+    IF simulated_id:
+        worker = db.query(Worker).filter(worker_id == simulated_id)
+        IF worker.fingerprint_enrolled:
+            RETURN {matched: True, worker_id: worker.id, confidence: 0.98}
+    IF sensor.is_connected:
+        sensor.send_packet(CMD_GET_IMAGE)
+        IF ACK == OK:
+            sensor.send_packet(CMD_GEN_CHAR, buffer=1)
+            search_res = sensor.send_packet(CMD_SEARCH, buffer=1, pages=0..300)
+            IF search_res.matched:
+                worker = db.lookup(search_res.page_id)
+                RETURN {matched: True, worker_id: worker.id, confidence: score/100}
+    RETURN {matched: False, reason: "Unregistered fingerprint"}"""
+    story.append(Paragraph(fprint_pseudo.replace("\n", "<br/>").replace(" ", "&nbsp;"),
+                            ss["CodeBlock"]))
+    story.append(sp(0.3))
+
+    # ── 6.2.9  Local Face Recognition Algorithm ───────────────────────────
+    story.append(Paragraph("6.2.9  Local Edge Face Recognition Algorithm (Spatial LBP + DCT)", ss["SubSection"]))
+    story.append(sp(0.2))
+    story.append(Paragraph(
+        "Face representation is computed entirely on-device using a 128-dimensional spatial Local "
+        "Binary Pattern (LBP) and Discrete Cosine Transform (DCT) descriptor. Cosine similarity "
+        "against enrolled worker templates is calculated via unit vector dot product in < 5 ms.",
+        ss["BodyJ"]))
+    story.append(sp(0.2))
+
+    face_pseudo = """\
+FUNCTION recognize_face(face_roi, enrolled_workers):
+    gray = cv2.cvtColor(face_roi, COLOR_BGR2GRAY)
+    equalized = cv2.createCLAHE(2.0, (8,8)).apply(resize(gray, (96,96)))
+    lbp = compute_circular_lbp(equalized)
+    dct_features = cv2.dct(float32(lbp))[zigzag_top_128]
+    query_emb = dct_features / norm(dct_features)  // Unit L2 norm
+
+    FOR EACH worker IN enrolled_workers:
+        similarity = dot_product(query_emb, worker.embedding)
+        IF similarity > best_score:
+            best_score = similarity; best_worker = worker
+    IF best_score >= 0.70:
+        RETURN {matched: True, worker: best_worker, confidence: best_score}
+    RETURN {matched: False, confidence: best_score}"""
+    story.append(Paragraph(face_pseudo.replace("\n", "<br/>").replace(" ", "&nbsp;"),
+                            ss["CodeBlock"]))
+    story.append(sp(0.3))
+
+    # ── 6.2.10 Doorway Checkpoint Multi-Factor Evaluation ──────────────────
+    story.append(Paragraph("6.2.10 Doorway Checkpoint Multi-Factor Access Algorithm", ss["SubSection"]))
+    story.append(sp(0.2))
+    story.append(Paragraph(
+        "The mock work area doorway checkpoint integrates biometric identity verification with YOLO11 "
+        "PPE compliance. The Raspberry Pi BCM GPIO 17 turnstile relay is unlatched only when both "
+        "identity and safety conditions are fully satisfied.",
+        ss["BodyJ"]))
+    story.append(sp(0.2))
+
+    doorway_pseudo = """\
+FUNCTION evaluate_doorway_access(worker_id, frame):
+    // 1. Biometric verification
+    worker = verify_fingerprint_and_face(worker_id, frame)
+    IF NOT worker:
+        trigger_gpio(PIN_22_RED_LED); voice_alert("Biometric failed. Access Denied")
+        RETURN {decision: "DENIED_BIOMETRIC_FAIL"}
+
+    // 2. YOLO11 PPE Verification
+    detections = yolo11_detector.detect(frame)
+    has_helmet = detections.worker.has_helmet
+    has_vest   = detections.worker.has_vest
+    IF NOT (has_helmet AND has_vest):
+        trigger_gpio(PIN_22_RED_LED); voice_alert("Access Denied: Missing PPE")
+        RETURN {decision: "DENIED_PPE_VIOLATION"}
+
+    // 3. Access Granted
+    trigger_gpio_pulse(PIN_17_RELAY, duration=4.0) // Unlock turnstile
+    trigger_gpio(PIN_27_GREEN_LED)
+    voice_alert("Welcome " + worker.name + ". PPE verified. Access granted.")
+    RETURN {decision: "GRANTED", turnstile_unlocked: True}"""
+    story.append(Paragraph(doorway_pseudo.replace("\n", "<br/>").replace(" ", "&nbsp;"),
+                            ss["CodeBlock"]))
+    story.append(sp(0.4))
+
+    # ── 6.2.11 Complexity Summary ─────────────────────────────────────────
+    story.append(Paragraph("6.2.11 Computational Complexity Summary", ss["SubSection"]))
     story.append(sp(0.2))
 
     complex_data = [
         ["Algorithm Stage",          "Time Complexity",     "Dominant Factor"],
         ["CLAHE Enhancement",        "O(W x H)",            "Frame pixel count"],
-        ["YOLOv8n Inference",        "O(N)",                "Grid cells x anchors (fixed by architecture)"],
+        ["YOLO11n Inference",        "O(N)",                "Grid cells x anchors (fixed by architecture)"],
         ["HSV PPE Verification",     "O(K x W_r x H_r)",   "K workers x region pixel area"],
+        ["Fingerprint Search",       "O(M)",                "M enrolled templates in flash (M <= 300)"],
+        ["Face LBP+DCT Embedding",   "O(P_f x log P_f)",    "P_f = 96x96 pixels (2D DCT FFT)"],
+        ["Face Cosine Matching",     "O(K x 128)",          "K enrolled workers x 128 float dot product"],
         ["PPE-Worker Association",   "O(K x E)",            "K workers x E equipment items"],
         ["Violation Analysis",       "O(K x R)",            "K workers x R rules"],
-        ["Alert Debounce",           "O(1) amortised",      "Hash-map lookup"],
-        ["Facial Blur",              "O(K x W_f x H_f)",   "K workers x face region area"],
+        ["GPIO Relay Trigger",       "O(1)",                "Kernel sysfs / gpiod memory-mapped IO"],
         ["JPEG Encoding",            "O(W x H)",            "Output frame pixels"],
     ]
     story.append(tbl(complex_data, [4*cm, 3.5*cm, 8*cm]))

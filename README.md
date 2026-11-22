@@ -16,13 +16,18 @@ Construction sites are high-risk dynamic environments where failure to wear Pers
 This project delivers a **fully functional, production-ready Edge AI safety monitoring system** that:
 1. Ingests video from AR/VR smart glasses or site cameras.
 2. Performs **real-time AI object detection locally** on a Raspberry Pi without streaming continuous video to external cloud servers.
-3. Automatically detects safety infractions:
+3. Automatically authenticates workers using **Multimodal Biometrics**:
+   - **AS608 / R503 Optical Fingerprint Sensor** (hardware UART on `/dev/serial0` with edge simulation fallback).
+   - **Local 128-D Edge Face Recognition** (Spatial LBP + DCT Normalized Embeddings; 100% cloud-free).
+4. Enforces a **Mock Work Area Doorway Checkpoint**:
+   - Gate access is unlocked via Raspberry Pi GPIO 17 Relay only when **Worker Identity is Biometrically Verified** AND **Full PPE (Safety Helmet + Reflective Vest) is Worn**.
+5. Automatically detects safety infractions:
    - **Missing Safety Helmet / Hard Hat**
    - **Missing High-Visibility Reflective Vest**
    - **Restricted Hazardous Excavator / Machine Zone Intrusion**
-4. Generates corrective safety instructions and converts them into **instant native-language voice alerts** (English, Hindi, Kannada, Spanish).
-5. Provides a worker-facing and supervisor industrial dashboard built with React and Tailwind CSS.
-6. Maintains a local SQLite event database adhering strictly to a **zero raw-video storage** privacy policy.
+6. Generates corrective safety instructions and converts them into **instant native-language voice alerts** (English, Hindi, Kannada, Spanish).
+7. Provides an interactive industrial dashboard built with React 18 and Tailwind CSS featuring a dedicated **Doorway Checkpoint Terminal** and **Worker Biometrics Management**.
+8. Maintains a local SQLite event database adhering strictly to a **zero raw-video storage** privacy policy.
 
 ---
 
@@ -31,12 +36,27 @@ This project delivers a **fully functional, production-ready Edge AI safety moni
 | Layer | Technologies |
 | :--- | :--- |
 | **Edge Hardware** | Raspberry Pi 4 Model B / Raspberry Pi 5 (64-bit ARM) |
-| **Backend Framework** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2 |
-| **Computer Vision & AI**| OpenCV 4.x, YOLOv8 (Ultralytics), PyTorch, ONNX Runtime |
+| **Biometric Hardware**| AS608 / R503 Optical Fingerprint Sensor (UART `/dev/serial0`) & Raspberry Pi BCM GPIO Relay |
+| **Backend Framework** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2, PySerial |
+| **Computer Vision & AI**| OpenCV 4.x, YOLO11 (Ultralytics), PyTorch, 128-D Spatial LBP Face Recognition |
 | **Voice / Speech** | `pyttsx3` (Offline Text-to-Speech Engine with background queue) |
-| **Database** | SQLite, SQLAlchemy 2.0 ORM |
+| **Database** | SQLite, SQLAlchemy 2.0 ORM (`workers`, `checkpoint_access_logs`, `safety_events`) |
 | **Frontend Dashboard** | React 18, Vite, Tailwind CSS, Recharts, Axios, Lucide Icons |
-| **Privacy Safeguards** | On-RAM processing, Automated Facial Gaussian Blurring, Data Retention Purge |
+| **Privacy Safeguards** | On-RAM volatile processing, Automated Facial Gaussian Blurring, Data Retention Purge |
+
+---
+
+## 🔌 Raspberry Pi 4 Hardware Pinout & Wiring Guide
+
+| Peripheral | Sensor / Actuator Pin | Raspberry Pi 4 Physical Header Pin | BCM GPIO Number | Function |
+| :--- | :--- | :--- | :--- | :--- |
+| **Fingerprint Sensor** | VCC | Pin 2 or 4 | 5V / 3.3V Power | DC Power |
+| **Fingerprint Sensor** | GND | Pin 6 | GND | Ground Reference |
+| **Fingerprint Sensor** | TXD (Green) | Pin 10 | GPIO 15 (UART RXD) | Serial receive from sensor |
+| **Fingerprint Sensor** | RXD (White) | Pin 8 | GPIO 14 (UART TXD) | Serial transmit to sensor |
+| **Door Latch Relay** | IN / Signal | Pin 11 | BCM GPIO 17 | Pulses HIGH on ACCESS GRANTED |
+| **Status Indicator** | Green LED / Anode | Pin 13 | BCM GPIO 27 | Visual indicator: Access Granted |
+| **Status Indicator** | Red LED / Buzzer | Pin 15 | BCM GPIO 22 | Visual/Audible indicator: Access Denied |
 
 ---
 
@@ -106,9 +126,9 @@ espeak "Edge construction safety system initialized"
 ### 3. Running Optimized ONNX Inference on Raspberry Pi
 For maximum frame rate on the Raspberry Pi ARM CPU without thermal throttling:
 ```bash
-# Export the YOLO model to static 640x640 ONNX
+# Export the YOLO11 model to static 640x640 ONNX
 cd backend
-python ai/export_edge_onnx.py --model yolov8n.pt --format onnx
+python ai/export_edge_onnx.py --model yolo11n.pt --format onnx
 ```
 
 ### 4. Running as a Systemd Edge Service

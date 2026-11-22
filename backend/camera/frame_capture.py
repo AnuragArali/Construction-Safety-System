@@ -73,8 +73,87 @@ class FrameCapture:
                 if ret and frame is not None:
                     return True, frame
 
-        # Synthetic Construction Workspace Generator (Guarantees fully working prototype anywhere)
+        # Synthetic Construction Workspace or Mock Doorway Checkpoint Generator
+        if str(self.source).strip().lower() in ("doorway", "checkpoint", "entrance", "mock_doorway"):
+            return True, self._generate_synthetic_doorway_frame()
         return True, self._generate_synthetic_construction_frame()
+
+    def _generate_synthetic_doorway_frame(self) -> np.ndarray:
+        """
+        Synthesizes a realistic mock work area doorway / turnstile entry checkpoint:
+        - Structural doorway portal with electronic turnstile barrier
+        - Biometric scanner kiosk (Fingerprint scanner pad & Face camera)
+        - Animated worker stepping up to the doorway scanner
+        """
+        w, h = 640, 480
+        frame = np.full((h, w, 3), (220, 225, 230), dtype=np.uint8)
+
+        # Draw indoor/entryway walls & floor
+        cv2.rectangle(frame, (0, 0), (w, int(h * 0.65)), (190, 195, 205), -1) # Wall
+        cv2.rectangle(frame, (0, int(h * 0.65)), (w, h), (100, 105, 115), -1) # Tiled entry floor
+
+        # Concrete doorway frame / portal
+        door_x1, door_x2 = 200, 440
+        door_top = 70
+        door_bottom = int(h * 0.65) + 120
+        # Pillars
+        cv2.rectangle(frame, (door_x1 - 35, door_top), (door_x1, door_bottom), (60, 65, 75), -1)
+        cv2.rectangle(frame, (door_x2, door_top), (door_x2 + 35, door_bottom), (60, 65, 75), -1)
+        # Lintel / Overhead beam
+        cv2.rectangle(frame, (door_x1 - 45, door_top - 35), (door_x2 + 45, door_top), (40, 45, 55), -1)
+        # Overhead doorway sign
+        cv2.rectangle(frame, (door_x1 - 20, door_top - 30), (door_x2 + 20, door_top - 5), (15, 20, 30), -1)
+        cv2.putText(frame, "DOORWAY CHECKPOINT - MOCK WORK AREA", (door_x1 - 10, door_top - 12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 220, 255), 1)
+
+        # Entrance interior beyond doorway (construction site backdrop visible inside)
+        cv2.rectangle(frame, (door_x1, door_top), (door_x2, int(h * 0.65)), (160, 175, 190), -1)
+        # Distant scaffolding inside doorway
+        cv2.line(frame, (door_x1 + 40, 130), (door_x1 + 40, int(h * 0.65)), (110, 115, 125), 2)
+        cv2.line(frame, (door_x2 - 40, 130), (door_x2 - 40, int(h * 0.65)), (110, 115, 125), 2)
+        cv2.line(frame, (door_x1 + 20, 180), (door_x2 - 20, 180), (110, 115, 125), 2)
+
+        # Electronic Turnstile Barrier
+        barrier_y = int(h * 0.65) + 20
+        cv2.rectangle(frame, (door_x1 + 10, barrier_y - 25), (door_x1 + 45, barrier_y + 45), (50, 50, 60), -1)
+        cv2.rectangle(frame, (door_x2 - 45, barrier_y - 25), (door_x2 - 10, barrier_y + 45), (50, 50, 60), -1)
+        # Turnstile arms
+        cv2.line(frame, (door_x1 + 45, barrier_y), (door_x1 + 115, barrier_y - 15), (180, 180, 190), 4)
+        cv2.line(frame, (door_x2 - 45, barrier_y), (door_x2 - 115, barrier_y - 15), (180, 180, 190), 4)
+
+        # Biometric Scanner Kiosk (Left side of doorway)
+        kiosk_x = 110
+        kiosk_y = 230
+        cv2.rectangle(frame, (kiosk_x, kiosk_y), (kiosk_x + 35, kiosk_y + 160), (35, 40, 50), -1) # Pedestal
+        cv2.rectangle(frame, (kiosk_x - 8, kiosk_y - 30), (kiosk_x + 43, kiosk_y), (25, 30, 40), -1) # Reader head
+        # Fingerprint Scanner Pad (Glowing cyan)
+        cv2.circle(frame, (kiosk_x + 10, kiosk_y - 15), 7, (230, 180, 0), -1)
+        # Mini camera lens
+        cv2.circle(frame, (kiosk_x + 28, kiosk_y - 15), 5, (20, 20, 20), -1)
+        cv2.putText(frame, "BIOMETRIC", (kiosk_x - 14, kiosk_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (200, 200, 200), 1)
+        cv2.putText(frame, "STATION", (kiosk_x - 10, kiosk_y + 32), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (200, 200, 200), 1)
+
+        # Animated Worker approaching the doorway
+        t = self._frame_count * 0.04
+        worker_x = int(320 + 20 * math.sin(t * 0.8))
+        worker_y = 210
+
+        # Body with High-Vis Safety Vest
+        cv2.rectangle(frame, (worker_x - 22, worker_y + 40), (worker_x + 22, worker_y + 110), (30, 220, 210), -1)
+        cv2.rectangle(frame, (worker_x - 16, worker_y + 60), (worker_x + 16, worker_y + 90), (200, 200, 200), 2)
+        # Legs
+        cv2.rectangle(frame, (worker_x - 18, worker_y + 110), (worker_x - 5, worker_y + 165), (55, 60, 70), -1)
+        cv2.rectangle(frame, (worker_x + 5, worker_y + 110), (worker_x + 18, worker_y + 165), (55, 60, 70), -1)
+        # Head & Yellow Helmet
+        cv2.circle(frame, (worker_x, worker_y + 20), 16, (140, 170, 210), -1) # Head skin
+        cv2.ellipse(frame, (worker_x, worker_y + 14), (18, 12), 0, 180, 360, (0, 220, 255), -1) # Yellow Hard hat
+        cv2.rectangle(frame, (worker_x - 20, worker_y + 12), (worker_x + 20, worker_y + 16), (0, 200, 240), -1)
+
+        # Status text overlay
+        cv2.putText(frame, "CAM-02 [DOORWAY CHECKPOINT - RASPBERRY PI EDGE]", (20, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (20, 20, 20), 2)
+        cv2.putText(frame, "ACCESS CONTROL: FINGERPRINT + FACE + YOLO11 PPE VERIFICATION", (20, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 120, 0), 1)
+
+        return frame
 
     def _generate_synthetic_construction_frame(self) -> np.ndarray:
         """

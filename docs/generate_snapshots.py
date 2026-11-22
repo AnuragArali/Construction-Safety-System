@@ -32,7 +32,7 @@ annotated = ImageProcessor.draw_safety_annotations(
     blurred, workers=up_workers, equipment=det_res["equipment"],
     violations=violations, restricted_zones=settings.RESTRICTED_ZONE_COORDS
 )
-cv2.putText(annotated, "FPS: 16.5 | Latency: 32.8ms | Edge Model: YOLOv8n", (20, 440),
+cv2.putText(annotated, "FPS: 16.5 | Latency: 31.8ms | Edge Model: YOLO11n", (20, 440),
             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
 cv2.imwrite(str(snapshots_dir / "fig1_live_edge_detection.png"), annotated)
 print("Saved fig1_live_edge_detection.png")
@@ -82,8 +82,8 @@ plt.close()
 print("Saved fig3_confusion_matrix.png")
 
 # 4. Generate Latency Breakdown Chart
-components = ["Frame Ingestion", "CLAHE Contrast", "YOLOv8 Inference", "Rule & Debounce", "TTS Voice Dispatch"]
-durations = [4.2, 3.8, 32.5, 2.1, 12.4] # in milliseconds
+components = ["Frame Ingestion", "CLAHE Contrast", "YOLO11 Inference", "Rule & Debounce", "TTS Voice Dispatch"]
+durations = [4.2, 3.8, 31.8, 2.1, 12.4] # in milliseconds
 total_latency = sum(durations)
 
 fig, ax = plt.subplots(figsize=(8, 4))

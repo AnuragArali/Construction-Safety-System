@@ -1,5 +1,5 @@
 """
-Model Evaluation and Benchmark Script
+Model Evaluation and Benchmark Script (YOLO11)
 Measures:
 - Precision: TP / (TP + FP)
 - Recall: TP / (TP + FN)
@@ -66,8 +66,8 @@ def evaluate(model_path: str, data_yaml: str):
     return report
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Validate Construction PPE YOLO Model")
-    parser.add_argument("--model", type=str, default="yolov8n.pt", help="Path to model weights")
+    parser = argparse.ArgumentParser(description="Validate Construction PPE YOLO11 Model")
+    parser.add_argument("--model", type=str, default="yolo11n.pt", help="Path to model weights")
     parser.add_argument("--data", type=str, default="coco8.yaml", help="Path to dataset yaml")
     args = parser.parse_args()
     evaluate(args.model, args.data)

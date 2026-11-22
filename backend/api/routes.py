@@ -13,11 +13,21 @@ from alerts.alert_manager import AlertManager
 from safety.recommendations import RecommendationEngine
 from privacy.privacy_manager import PrivacyManager
 from config import settings
+from biometrics.fingerprint_manager import FingerprintManager
+from biometrics.face_recognizer import FaceRecognizer
+from biometrics.doorway_controller import DoorwayController
+import cv2
+import numpy as np
+import base64
+
 from api.schemas import (
     MonitoringControlRequest, MonitoringControlResponse,
     SafetyEventResponse, SafetyStatisticsResponse,
     RuleResponse, RuleToggleRequest, LanguageConfigRequest,
-    SettingsUpdateRequest, PrivacyComplianceResponse
+    SettingsUpdateRequest, PrivacyComplianceResponse,
+    WorkerCreateRequest, WorkerResponse,
+    FingerprintEnrollRequest, FingerprintVerifyRequest,
+    CheckpointVerifyRequest, CheckpointAccessResponse
 )
 
 router = APIRouter(prefix="/api")
@@ -214,3 +224,165 @@ def update_settings(payload: SettingsUpdateRequest):
         settings.TARGET_FPS = payload.target_fps
 
     return {"status": "updated", "message": "Settings saved successfully."}
+
+
+# =========================================================================
+#  WORKER DIRECTORY & BIOMETRICS API (RASPBERRY PI COMPATIBLE)
+# =========================================================================
+
+@router.get("/workers", response_model=list[WorkerResponse])
+def get_workers(db: Session = Depends(get_db)):
+    workers = EventRepository.get_workers(db)
+    return [w.to_dict() for w in workers]
+
+@router.post("/workers", response_model=WorkerResponse)
+def create_worker(payload: WorkerCreateRequest, db: Session = Depends(get_db)):
+    existing = EventRepository.get_worker_by_id(db, payload.worker_id)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Worker ID {payload.worker_id} already exists.")
+    
+    worker = EventRepository.create_worker(db, payload.dict())
+    return worker.to_dict()
+
+@router.get("/workers/{worker_id}")
+def get_worker(worker_id: str, db: Session = Depends(get_db)):
+    worker = EventRepository.get_worker_by_id(db, worker_id)
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker not found.")
+    return worker.to_dict(include_features=False)
+
+@router.delete("/workers/{worker_id}")
+def delete_worker(worker_id: str, db: Session = Depends(get_db)):
+    success = EventRepository.delete_worker(db, worker_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Worker not found.")
+    return {"status": "deleted", "worker_id": worker_id}
+
+@router.get("/biometrics/status")
+def get_biometrics_status():
+    fprint_mgr = FingerprintManager.get_instance()
+    face_rec = FaceRecognizer.get_instance()
+    controller = DoorwayController.get_instance()
+
+    return {
+        "fingerprint": fprint_mgr.get_status(),
+        "face_recognition": {
+            "model_type": "Spatial LBP + DCT Frequency Embedding (OpenCV Native)",
+            "embedding_dimension": face_rec.embedding_dim,
+            "match_threshold": face_rec.match_threshold,
+            "target_roi_size": face_rec.target_size,
+            "edge_friendly": True,
+            "cloud_free": True
+        },
+        "doorway_checkpoint": {
+            "name": controller.checkpoint_name,
+            "relay_gpio_pin": controller.relay_pin,
+            "green_led_pin": controller.led_green_pin,
+            "red_led_pin": controller.led_red_pin,
+            "unlock_duration_sec": controller.unlock_seconds,
+            "gpio_hardware_mode": "REAL_RPI_GPIO" if controller.gpio_available else "EDGE_GPIO_SIMULATOR",
+            "raspberry_pi_ready": True
+        }
+    }
+
+@router.post("/biometrics/fingerprint/enroll")
+def enroll_fingerprint(payload: FingerprintEnrollRequest):
+    fprint_mgr = FingerprintManager.get_instance()
+    res = fprint_mgr.enroll_fingerprint(payload.worker_id, payload.slot_id)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
+
+@router.post("/biometrics/fingerprint/verify")
+def verify_fingerprint(payload: FingerprintVerifyRequest):
+    fprint_mgr = FingerprintManager.get_instance()
+    res = fprint_mgr.verify_fingerprint(simulated_worker_id=payload.simulated_worker_id)
+    return res
+
+@router.post("/biometrics/face/enroll")
+async def enroll_face(
+    worker_id: str = Query(..., description="Worker ID to associate with this face"),
+    file: UploadFile = File(None)
+):
+    face_rec = FaceRecognizer.get_instance()
+    img_np = None
+
+    if file:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    else:
+        # Capture current camera snapshot
+        processor = VideoProcessor.get_instance()
+        frame_bytes = processor.get_latest_frame_bytes()
+        if frame_bytes:
+            nparr = np.frombuffer(frame_bytes, np.uint8)
+            img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if img_np is None or img_np.size == 0:
+        raise HTTPException(status_code=400, detail="No face image received from file upload or camera.")
+
+    res = face_rec.enroll_worker_face(worker_id, img_np)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
+
+@router.post("/biometrics/face/verify")
+async def verify_face(file: UploadFile = File(None)):
+    face_rec = FaceRecognizer.get_instance()
+    img_np = None
+
+    if file:
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    else:
+        processor = VideoProcessor.get_instance()
+        frame_bytes = processor.get_latest_frame_bytes()
+        if frame_bytes:
+            nparr = np.frombuffer(frame_bytes, np.uint8)
+            img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if img_np is None or img_np.size == 0:
+        raise HTTPException(status_code=400, detail="No image provided for facial verification.")
+
+    res = face_rec.recognize_face(img_np)
+    return res
+
+
+# =========================================================================
+#  MOCK WORK AREA / DOORWAY CHECKPOINT ACCESS EVALUATION API
+# =========================================================================
+
+@router.post("/checkpoint/verify", response_model=CheckpointAccessResponse)
+def evaluate_checkpoint_entry(payload: CheckpointVerifyRequest):
+    controller = DoorwayController.get_instance()
+    
+    if payload.scenario_key:
+        res = controller.run_demo_scenario(payload.scenario_key, language=payload.language or "en")
+        return res
+
+    # Otherwise evaluate standard entry request
+    processor = VideoProcessor.get_instance()
+    frame_bytes = processor.get_latest_frame_bytes()
+    frame_np = None
+    if frame_bytes:
+        nparr = np.frombuffer(frame_bytes, np.uint8)
+        frame_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    res = controller.evaluate_checkpoint_entry(
+        worker_id=payload.worker_id,
+        fingerprint_id=payload.fingerprint_id,
+        frame=frame_np,
+        language=payload.language or "en"
+    )
+    return res
+
+@router.get("/checkpoint/logs")
+def get_checkpoint_logs(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
+    logs = EventRepository.get_checkpoint_logs(db, limit=limit, offset=offset)
+    return [l.to_dict() for l in logs]
+
+@router.get("/checkpoint/stats")
+def get_checkpoint_stats(db: Session = Depends(get_db)):
+    return EventRepository.get_checkpoint_statistics(db)

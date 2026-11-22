@@ -115,6 +115,20 @@ class VideoProcessor:
             equipment = detection_res["equipment"]
             fw, fh = detection_res["frame_width"], detection_res["frame_height"]
 
+            # 2b. Optional Face Recognition Identity Tagging
+            if settings.FACE_RECOGNITION_ENABLED:
+                try:
+                    from biometrics.face_recognizer import FaceRecognizer
+                    face_rec = FaceRecognizer.get_instance()
+                    for w_item in workers:
+                        wb = w_item.get("box", {})
+                        f_match = face_rec.recognize_face(enhanced, wb)
+                        if f_match.get("matched"):
+                            w_item["worker_id"] = f"{f_match['name']} ({f_match['worker_id']})"
+                            w_item["is_authenticated"] = True
+                except Exception:
+                    pass
+
             # 3. Safety Violation Analysis
             updated_workers, violations = self.analyzer.analyze(
                 workers=workers,

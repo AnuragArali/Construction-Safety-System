@@ -11,11 +11,15 @@ import {
   HardHat,
   Cpu,
   ShieldCheck,
+  DoorClosed,
+  Fingerprint,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Live Monitoring', href: '/live', icon: Video },
+  { name: 'Doorway Checkpoint', href: '/checkpoint', icon: DoorClosed },
+  { name: 'Worker Biometrics', href: '/biometrics', icon: Fingerprint },
   { name: 'Safety Alerts', href: '/alerts', icon: AlertTriangle },
   { name: 'Safety History', href: '/history', icon: History },
   { name: 'Safety Analytics', href: '/analytics', icon: BarChart3 },

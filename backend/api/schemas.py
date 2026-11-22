@@ -67,3 +67,53 @@ class PrivacyComplianceResponse(BaseModel):
     database_type: str
     compliance_score: int
     issues: List[str]
+
+
+# --- Worker & Biometric Schemas ---
+class WorkerCreateRequest(BaseModel):
+    worker_id: str = Field(..., description="Unique worker badge ID, e.g. W-105")
+    name: str = Field(..., description="Full Name of worker")
+    role: Optional[str] = Field("Site Technician", description="Job role")
+    department: Optional[str] = Field("Construction & Framing", description="Department")
+    authorized_zones: Optional[List[str]] = Field(["General Worksite", "Doorway-North"])
+
+
+class WorkerResponse(BaseModel):
+    id: int
+    worker_id: str
+    name: str
+    role: str
+    department: str
+    fingerprint_id: Optional[int] = None
+    fingerprint_enrolled: bool
+    face_enrolled: bool
+    authorized_zones: List[str]
+    is_active: bool
+    created_at: Optional[str] = None
+
+
+class FingerprintEnrollRequest(BaseModel):
+    worker_id: str
+    slot_id: Optional[int] = None
+
+
+class FingerprintVerifyRequest(BaseModel):
+    simulated_worker_id: Optional[str] = None
+
+
+class CheckpointVerifyRequest(BaseModel):
+    worker_id: Optional[str] = None
+    fingerprint_id: Optional[int] = None
+    language: Optional[str] = "en"
+    scenario_key: Optional[str] = None # 'compliant_worker', 'non_compliant_worker', 'unregistered_worker'
+
+
+class CheckpointAccessResponse(BaseModel):
+    access_decision: str
+    status_code: str
+    worker: Optional[Dict[str, Any]] = None
+    reason: str
+    voice_announcement: Optional[str] = None
+    turnstile_unlocked: bool
+    ppe_check: Dict[str, Any]
+    execution_time_ms: float

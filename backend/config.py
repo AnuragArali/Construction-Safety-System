@@ -35,7 +35,7 @@ class Settings(BaseModel):
     DATABASE_URL: str = f"sqlite:///{_DATA_DIR / 'construction_safety.db'}"
 
     # AI Detection
-    MODEL_PATH: str = str(_MODELS_DIR / "yolov8n.pt")
+    MODEL_PATH: str = str(_MODELS_DIR / "yolo11n.pt")
     DETECTION_CONFIDENCE: float = 0.40
     IOU_THRESHOLD: float = 0.45
     INPUT_IMAGE_SIZE: int = 640
@@ -64,5 +64,26 @@ class Settings(BaseModel):
     BLUR_FACES_IN_EVENTS: bool = True
     DATA_RETENTION_DAYS: int = 14
     ALLOW_CLOUD_STREAMING: bool = False  # Local edge only
+
+    # Biometric Worker Authentication & Edge Fingerprint Sensor
+    BIOMETRICS_ENABLED: bool = True
+    FINGERPRINT_PORT: str = "/dev/serial0" if (hasattr(os, "uname") and os.uname().sysname == "Linux") else "COM3"
+    FINGERPRINT_BAUDRATE: int = 57600
+    FINGERPRINT_TIMEOUT: float = 1.0
+    FINGERPRINT_SIMULATION_MODE: bool = False  # Auto-falls back to simulation if hardware not connected
+    
+    # Face Recognition (Raspberry Pi Edge Local Embeddings)
+    FACE_RECOGNITION_ENABLED: bool = True
+    FACE_MATCH_THRESHOLD: float = 0.70  # Cosine similarity threshold for worker verification
+    FACE_ROI_SCALE: float = 0.28        # Top portion of worker bounding box containing face
+
+    # Doorway / Mock Work Area Checkpoint Controller
+    CHECKPOINT_NAME: str = "Doorway-North"
+    DOORWAY_RELAY_GPIO_PIN: int = 17   # Raspberry Pi BCM Pin 17 for electronic turnstile / door latch
+    DOORWAY_STATUS_LED_GREEN: int = 27 # BCM Pin 27 for Access Granted LED
+    DOORWAY_STATUS_LED_RED: int = 22   # BCM Pin 22 for Access Denied LED / buzzer
+    DOORWAY_UNLOCK_SECONDS: float = 4.0 # Latch hold duration
+    REQUIRE_BIOMETRIC_AUTH: bool = True
+    REQUIRE_PPE_FOR_ACCESS: bool = True
 
 settings = Settings()

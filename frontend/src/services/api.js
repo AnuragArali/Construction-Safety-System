@@ -48,6 +48,27 @@ export const api = {
   // Settings
   getSettings: () => apiClient.get('/settings'),
   updateSettings: (data) => apiClient.post('/settings', data),
+
+  // Worker Biometrics & Directory
+  getWorkers: () => apiClient.get('/workers'),
+  createWorker: (data) => apiClient.post('/workers', data),
+  deleteWorker: (worker_id) => apiClient.delete(`/workers/${worker_id}`),
+  getBiometricsStatus: () => apiClient.get('/biometrics/status'),
+  enrollFingerprint: (data) => apiClient.post('/biometrics/fingerprint/enroll', data),
+  verifyFingerprint: (data = {}) => apiClient.post('/biometrics/fingerprint/verify', data),
+  enrollFace: (worker_id, formData) =>
+    apiClient.post(`/biometrics/face/enroll?worker_id=${worker_id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  verifyFace: (formData) =>
+    apiClient.post('/biometrics/face/verify', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  // Doorway / Mock Work Area Checkpoint
+  verifyCheckpoint: (data = {}) => apiClient.post('/checkpoint/verify', data),
+  getCheckpointLogs: (params = {}) => apiClient.get('/checkpoint/logs', { params }),
+  getCheckpointStats: () => apiClient.get('/checkpoint/stats'),
 };
 
 export default api;

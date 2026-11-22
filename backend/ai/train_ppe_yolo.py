@@ -1,6 +1,6 @@
 """
 Construction PPE Detection Model Training Script
-Trains a custom YOLOv8 model for construction site PPE compliance.
+Trains a custom YOLO11 model for construction site PPE compliance.
 """
 
 import os
@@ -32,10 +32,10 @@ def train(dataset_dir: str, epochs: int = 50, batch_size: int = 16, imgsz: int =
     yaml_config = setup_dataset_yaml(dataset_dir)
     print(f"Dataset config written to {yaml_config}")
 
-    # Initialize pretrained YOLOv8 nano edge backbone
-    model = YOLO("yolov8n.pt")
+    # Initialize pretrained YOLO11 nano edge backbone
+    model = YOLO("yolo11n.pt")
 
-    print("Beginning fine-tuning on construction PPE dataset...")
+    print("Beginning fine-tuning on construction PPE dataset using YOLO11...")
     results = model.train(
         data=yaml_config,
         epochs=epochs,
@@ -45,12 +45,12 @@ def train(dataset_dir: str, epochs: int = 50, batch_size: int = 16, imgsz: int =
         device="cpu", # Change to 0 for CUDA GPU
         save=True,
         project="runs/construction_ppe",
-        name="edge_model_v1"
+        name="edge_model_yolo11_v1"
     )
-    print("Training complete. Best model weights saved at: runs/construction_ppe/edge_model_v1/weights/best.pt")
+    print("Training complete. Best model weights saved at: runs/construction_ppe/edge_model_yolo11_v1/weights/best.pt")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Construction PPE YOLO Model")
+    parser = argparse.ArgumentParser(description="Train Construction PPE YOLO11 Model")
     parser.add_argument("--data", type=str, default="data/ppe_dataset", help="Path to PPE dataset folder")
     parser.add_argument("--epochs", type=int, default=30, help="Number of training epochs")
     parser.add_argument("--batch", type=int, default=8, help="Batch size")

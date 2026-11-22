@@ -27,29 +27,44 @@ This system provides a **Local Edge-First, Privacy-Preserving Architecture**:
 
 ```mermaid
 flowchart TD
-    subgraph EdgeInput ["Input Devices (Field of View)"]
-        Cam["AR Smart Glasses / Webcam / Controlled Video"]
+    subgraph EdgeInput ["Input Devices (Field of View & Biometrics)"]
+        Cam["Doorway Camera / Webcam / AR Glasses"]
+        FP["AS608/R503 Optical Fingerprint Sensor (UART /dev/serial0)"]
     end
 
     subgraph RaspberryPiEdge ["Edge Processing Unit (Raspberry Pi 4 / 5)"]
         Cap["Camera Capture Module (OpenCV)"]
         Prep["Image Preprocessing (CLAHE Contrast + Letterbox)"]
-        AI["AI Safety Detection (YOLOv8 Edge Engine)"]
+        AI["AI Safety Detection (YOLO11 Edge Engine)"]
+        Face["Local Face Recognizer (128-D LBP Embeddings)"]
+        FPMgr["Fingerprint Manager (AS608 UART + Edge Sim)"]
+        Gate["Doorway Checkpoint Controller (Biometrics + PPE)"]
         Safety["Safety Rules Engine (Debounce + Severity)"]
         Rec["Corrective Recommendation Engine"]
         Voice["Offline Voice Module (pyttsx3 Speech Queue)"]
-        DB[(Local SQLite Event DB)]
+        DB[(Local SQLite Event DB & Worker Directory)]
         Priv["Privacy Guardian (Facial Blurring + Zero Cloud Upload)"]
+        GPIO["Raspberry Pi GPIO Controller (BCM 17 Relay / 27 LED / 22 LED)"]
     end
 
-    subgraph Outputs ["Local Interface & Worker Delivery"]
-        Audio["AR Voice Alert (Audio in Smart Glasses / Speaker)"]
+    subgraph Outputs ["Local Interface & Actuators"]
+        Audio["Voice Alert (Audio Speaker / AR Smart Glasses)"]
         Dashboard["React Industrial Dashboard (Local Network Web App)"]
+        Lock["Electronic Turnstile / Doorway Latch (GPIO 17 Pulse)"]
     end
 
     Cam -->|Real-time Frames| Cap
+    FP -->|UART Serial Data| FPMgr
     Cap --> Prep
     Prep --> AI
+    Prep --> Face
+    AI --> Gate
+    Face --> Gate
+    FPMgr --> Gate
+    Gate -->|Access Granted| GPIO
+    GPIO -->|Pulse 4s| Lock
+    Gate -->|Voice Feedback| Voice
+    Gate -->|Audit Entry| DB
     AI --> Safety
     Safety -->|No Violation| DB
     Safety -->|Violation Detected| Rec
@@ -90,7 +105,7 @@ flowchart TD
 | Component | Hardware-Dependent Aspect | Development / Fallback Strategy |
 | :--- | :--- | :--- |
 | **Camera Ingestion** | V4L2 USB camera / MIPI-CSI Raspberry Pi Camera Module | Supports OpenCV DirectShow (`CAP_DSHOW`), Video file uploads, and built-in synthetic worksite generator. |
-| **AI Inference** | ARM Cortex-A72/A76 CPU or Edge TPU accelerator | PyTorch CPU / YOLOv8 nano / OpenCV DNN ONNX runtime with heuristic fallback. |
+| **AI Inference** | ARM Cortex-A72/A76 CPU or Edge TPU accelerator | PyTorch CPU / YOLO11 nano / OpenCV DNN ONNX runtime with heuristic fallback. |
 | **Voice Output** | 3.5mm audio jack / Bluetooth AR Smart Glasses speaker | Offline `pyttsx3` with background threading and fallback logging. |
 | **Local Storage** | MicroSD card / NVMe HAT on Raspberry Pi | Standard zero-config SQLite database (`construction_safety.db`). |
 
